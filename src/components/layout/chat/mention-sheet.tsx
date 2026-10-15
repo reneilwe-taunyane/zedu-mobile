@@ -1,4 +1,3 @@
-
 import React, { useMemo, useCallback } from 'react';
 import { View, TouchableOpacity, Image, FlatList } from 'react-native';
 import { AppText } from '@/components/ui/text';

@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   Linking,
+  Share,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -14,7 +16,6 @@ import {
   fetchLinkPreview,
   type LinkPreviewData,
 } from '@/utils/link-preview';
-import { ShowNotify } from '@/components/ui/toast';
 
 type Props = {
   html?: string | null;
@@ -79,7 +80,15 @@ export function MessageLinkPreviews({ html, excludeUrls = [] }: Props) {
     try {
       await Linking.openURL(href);
     } catch {
-      ShowNotify('Error', 'An error occurred while opening the link');
+      // No app could open the link: offer a way out instead of stranding
+      // the user with a toast.
+      Alert.alert('Could not open link', href, [
+        {
+          text: 'Share link',
+          onPress: () => Share.share({ message: href }),
+        },
+        { text: 'Dismiss', style: 'cancel' },
+      ]);
     }
   };
 

@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   Linking,
+  Share,
   StyleProp,
   Text,
   TextStyle,
@@ -22,7 +24,6 @@ import {
   isDocumentUrl,
   type DocumentPreviewFile,
 } from '@/utils/document-preview';
-import { ShowNotify } from '@/components/ui/toast';
 import { ChatFilePreviewModal } from './chat-file-attachment';
 import { MessageLinkPreviews } from './link-preview';
 
@@ -108,7 +109,15 @@ export const MessageContent: React.FC<MessageContentProps> = ({
       // https unless the manifest declares a matching <queries> intent.
       await Linking.openURL(href);
     } catch {
-      ShowNotify('Error', 'An error occurred while opening the link');
+      // No app could open the link: offer a way out instead of stranding
+      // the user with a toast.
+      Alert.alert('Could not open link', href, [
+        {
+          text: 'Share link',
+          onPress: () => Share.share({ message: href }),
+        },
+        { text: 'Dismiss', style: 'cancel' },
+      ]);
     }
   }, []);
 
@@ -281,6 +290,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
                 >
                   {block.segment.ordered ? `${itemIndex + 1}.` : '•'}
                 </Text>
+                {/* eslint-disable-next-line react-native/no-inline-styles -- pre-existing flex helper, keep layout unchanged */}
                 <Text style={[styles.text, { flex: 1 }]}>
                   {renderInline(
                     item.filter(
