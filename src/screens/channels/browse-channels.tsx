@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles -- pre-existing inline styles throughout this screen; new code uses StyleSheet */
 import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -7,6 +8,7 @@ import {
   FlatList,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { AppText } from '@/components/ui/text';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -25,6 +27,7 @@ import { Channel } from '@/types/channel';
 import ChatSkeleton from '@/components/skeleton/chat-skeleton';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useBrowseChannels } from '@/services/channels/browse-channel';
+import { joinChannel } from '@/services/channels/join-channel';
 
 const BrowseChannel = () => {
   const { colors } = useTheme();
@@ -32,11 +35,16 @@ const BrowseChannel = () => {
     () => createChannelSetupStyles(colors).browseChannels,
     [colors],
   );
+  const joinStyles = useMemo(
+    () => createJoinStyles(colors.primary),
+    [colors.primary],
+  );
   const navigation = useNavigation();
   const [_isSheetOpen, setIsSheetOpen] = useState(false);
   const { state, dispatch } = useDataContext();
   const { user, orgId } = state;
   const [search, setSearch] = useState('');
+  const [joiningId, setJoiningId] = useState<string | null>(null);
   const { channels, loading, loadingMore, refresh, loadMore } =
     useBrowseChannels(orgId, search);
 
@@ -64,6 +72,30 @@ const BrowseChannel = () => {
         payload: props?.channels_id,
       });
     }
+  };
+
+  // join a public channel straight from the browse list, then open it
+  const handleJoinChannel = async (props: Channel) => {
+    if (joiningId) return;
+    setJoiningId(props.channels_id);
+
+    const { data, error } = await joinChannel(
+      props.channels_id,
+      user?.username,
+    );
+
+    if (!error) {
+      dispatch({
+        type: ACTIONS.CHANNEL_CALLBACK,
+        payload: !state.channelCallback,
+      });
+      dispatch({ type: ACTIONS.SUCCESS, payload: data?.message });
+      handleNavigate({ ...props, access: true });
+    } else {
+      dispatch({ type: ACTIONS.ERROR, payload: error });
+    }
+
+    setJoiningId(null);
   };
 
   return (
@@ -190,6 +222,22 @@ const BrowseChannel = () => {
                       item.members_count > 1 ? 'members' : 'member'
                     } in channel`}</AppText>
                   </View>
+
+                  {!item.access && !item.is_private ? (
+                    <TouchableOpacity
+                      style={joinStyles.button}
+                      onPress={() => handleJoinChannel(item)}
+                      disabled={joiningId === item.channels_id}
+                    >
+                      <AppText
+                        variant="bold"
+                        size={12}
+                        style={joinStyles.label}
+                      >
+                        {joiningId === item.channels_id ? 'Joining...' : 'Join'}
+                      </AppText>
+                    </TouchableOpacity>
+                  ) : null}
                 </TouchableOpacity>
               )}
               onEndReached={loadMore}
@@ -223,5 +271,20 @@ const BrowseChannel = () => {
     </Container>
   );
 };
+
+function createJoinStyles(primary: string) {
+  return StyleSheet.create({
+    button: {
+      backgroundColor: primary,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      alignSelf: 'center',
+    },
+    label: {
+      color: '#FFFFFF',
+    },
+  });
+}
 
 export default BrowseChannel;
